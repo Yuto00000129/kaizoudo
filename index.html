@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>解像度の実験室</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap">
+<style>
+/* Layout: STEP 1（下げる）と STEP 2（上げる）を同じ形のカードで縦に並べる。左に操作、右にプレビュー。 */
+:root {
+  --bg: #f3f5f7;
+  --panel: #ffffff;
+  --fg: #17212b;
+  --muted: #5b6876;
+  --line: #d9dfe6;
+  --accent: #1f6feb;
+  --accent-fg: #ffffff;
+  --accent-soft: #e3edfd;
+  --loss: #c2410c;
+  --loss-soft: #fdebdd;
+  --check-a: #e9edf1;
+  --check-b: #ffffff;
+  --font-body: "IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f151b; --panel: #161e26; --fg: #e4eaf0; --muted: #94a2b0; --line: #2a3541;
+    --accent: #5b9bff; --accent-fg: #0b1220; --accent-soft: #1a2b45;
+    --loss: #fb8c4a; --loss-soft: #3a2416;
+    --check-a: #1c252e; --check-b: #232d38; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f151b; --panel: #161e26; --fg: #e4eaf0; --muted: #94a2b0; --line: #2a3541;
+  --accent: #5b9bff; --accent-fg: #0b1220; --accent-soft: #1a2b45;
+  --loss: #fb8c4a; --loss-soft: #3a2416;
+  --check-a: #1c252e; --check-b: #232d38; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.75;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 24px; }
+header { display: grid; gap: 6px; }
+h1 { font-size: 28px; margin: 0; letter-spacing: .02em; line-height: 1.3; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 62ch; }
+h2 { font-size: 20px; margin: 0; line-height: 1.4; text-wrap: balance; }
+p { margin: 0; }
+
+.step { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 22px; display: grid; gap: 18px; min-width: 0; }
+.step-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.num { font: 500 12px var(--font-mono); letter-spacing: .1em; color: var(--accent); }
+.step-head p { color: var(--muted); flex-basis: 100%; max-width: 70ch; }
+
+.cols { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 22px; align-items: start; }
+@media (max-width: 820px) { .cols { grid-template-columns: minmax(0, 1fr); } .step { padding: 16px; } }
+
+.ctrl { display: grid; gap: 16px; }
+.sec { display: grid; gap: 8px; }
+.label { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--muted); }
+.drop {
+  border: 1.5px dashed var(--line); border-radius: 8px; padding: 14px; text-align: center; cursor: pointer;
+  color: var(--muted); font-size: 14px; transition: border-color .15s, background .15s;
+}
+.drop:hover, .drop.over, .drop:focus-visible { border-color: var(--accent); background: var(--accent-soft); color: var(--fg); outline: none; }
+.drop strong { color: var(--accent); }
+.fileinfo { font-family: var(--font-mono); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.tag { display: inline-block; font-family: var(--font-body); font-size: 11px; padding: 0 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); margin-left: 4px; }
+.from { display: flex; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+.from canvas { width: 64px; height: auto; border-radius: 4px; image-rendering: pixelated; flex: none; }
+.from div { font-size: 13px; line-height: 1.5; min-width: 0; }
+.from b { font-family: var(--font-mono); font-weight: 500; }
+
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.seg button { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; padding: 6px 0; cursor: pointer; line-height: 1.4; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); font-weight: 500; }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+input[type="number"], select {
+  width: 100%; font: 500 15px var(--font-mono); color: var(--fg); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font-variant-numeric: tabular-nums;
+}
+select { font-family: var(--font-body); font-size: 14px; }
+input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+.numrow { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 10px; align-items: center; }
+.saverow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.presets button {
+  font: 500 12px var(--font-mono); border: 1px solid var(--line); background: transparent; color: var(--fg);
+  border-radius: 999px; padding: 3px 10px; cursor: pointer;
+}
+.presets button:hover { border-color: var(--accent); color: var(--accent); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hint { font-size: 12.5px; color: var(--muted); }
+.btn {
+  font: 700 14px var(--font-body); background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 8px;
+  padding: 8px 16px; cursor: pointer;
+}
+.btn.ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); font-weight: 500; font-size: 13px; padding: 6px 12px; }
+.btn.ghost:hover { border-color: var(--accent); color: var(--accent); }
+.btn.ghost.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.hold { user-select: none; -webkit-user-select: none; touch-action: none; }
+
+.view { display: grid; gap: 10px; min-width: 0; }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 22px; align-items: center; }
+.stat { display: grid; line-height: 1.4; }
+.stat small { font-size: 11px; color: var(--muted); letter-spacing: .05em; }
+.stat b { font: 500 16px var(--font-mono); font-variant-numeric: tabular-nums; }
+.stat b.lossv { color: var(--loss); }
+.spacer { flex: 1; }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.stage {
+  border: 1px solid var(--line); border-radius: 10px; overflow: hidden; position: relative; display: grid; place-items: center; min-height: 220px;
+  background-color: var(--check-b);
+  background-image: linear-gradient(45deg, var(--check-a) 25%, transparent 25%, transparent 75%, var(--check-a) 75%),
+                    linear-gradient(45deg, var(--check-a) 25%, transparent 25%, transparent 75%, var(--check-a) 75%);
+  background-size: 20px 20px; background-position: 0 0, 10px 10px;
+}
+.stage canvas { display: block; max-width: 100%; max-height: 62vh; width: auto; height: auto; image-rendering: pixelated; }
+.badge { position: absolute; left: 10px; top: 10px; font-size: 12px; padding: 2px 8px; border-radius: 4px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); }
+.callout { border-left: 3px solid var(--loss); background: var(--loss-soft); padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 14px; }
+.status { font-size: 12.5px; color: var(--muted); min-height: 1.5em; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>解像度の実験室</h1>
+    <p>STEP 1 で画像の解像度を下げ、STEP 2 でその画像の解像度をもう一度上げてみます。元の画像に戻るかどうか、目と数字で確かめましょう。手持ちの写真でも試せます（画像はこのブラウザの中だけで処理されます）。</p>
+  </header>
+
+  <!-- STEP 1 -->
+  <section class="step" id="s1">
+    <div class="step-head">
+      <span class="num">STEP 1</span><h2>解像度を下げる</h2>
+      <p>画像の大きさは変えずに、中に並んでいる画素（ピクセル）の数を減らします。数値を小さくするほどドットが大きく、粗くなります。</p>
+    </div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="sec">
+          <div class="label">画像</div>
+          <div class="drop" id="drop" tabindex="0" role="button" aria-label="画像を選ぶ"><strong>画像を選ぶ</strong> か、ここにドロップ<br><span style="font-size:12px">貼り付け（Ctrl/⌘+V）にも対応</span></div>
+          <input type="file" id="file" accept="image/*" hidden>
+          <div class="fileinfo" id="fileinfo"></div>
+        </div>
+        <div class="sec" data-ctl="1">
+          <div class="label">解像度の指定方法</div>
+          <div class="seg" role="group" aria-label="指定方法">
+            <button type="button" data-mode="pct" aria-pressed="true">解像度 %</button>
+            <button type="button" data-mode="dots" aria-pressed="false">横のドット数</button>
+            <button type="button" data-mode="block" aria-pressed="false">ドットの大きさ</button>
+          </div>
+          <div class="numrow">
+            <input type="range" class="slider" aria-label="値を調整">
+            <input type="number" class="num" step="any" inputmode="decimal" aria-label="値">
+          </div>
+          <p class="hint modeHint"></p>
+          <div class="presets"></div>
+        </div>
+        <div class="sec">
+          <div class="label">保存</div>
+          <div class="saverow">
+            <select id="fmt1" aria-label="保存形式">
+              <option value="image/png">PNG（ドットがきれい）</option>
+              <option value="image/jpeg">JPEG</option>
+              <option value="image/webp">WebP</option>
+            </select>
+            <button class="btn" id="save1" type="button">保存</button>
+          </div>
+        </div>
+      </div>
+      <div class="view">
+        <div class="stats">
+          <div class="stat"><small>画像の大きさ</small><b id="srcDim">—</b></div>
+          <div class="stat"><small>中身の解像度</small><b id="lowDim">—</b></div>
+          <div class="stat"><small>ドット1つ</small><b id="dot1">—</b></div>
+          <span class="spacer"></span>
+          <button type="button" class="btn ghost hold" data-hold="1">押している間 元画像</button>
+        </div>
+        <div class="stage"><canvas id="out1" aria-label="解像度を下げた画像"></canvas><span class="badge" id="badge1" hidden>元画像</span></div>
+        <p class="status" id="status1"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="step" id="s2">
+    <div class="step-head">
+      <span class="num">STEP 2</span><h2>解像度を上げる</h2>
+      <p>STEP 1 で解像度を下げた画像を使って、今度は画素の数を増やします。STEP 1 と同じように数値で指定できます。いちばん上げると、元の画像と同じ解像度になります。</p>
+    </div>
+    <div class="cols">
+      <div class="ctrl">
+        <div class="sec">
+          <div class="label">使う画像</div>
+          <div class="from"><canvas id="thumb" aria-label="STEP 1 で下げた画像"></canvas><div>STEP 1 で下げた画像<br>中身の解像度 <b id="fromDim">—</b></div></div>
+        </div>
+        <div class="sec" data-ctl="2">
+          <div class="label">解像度の指定方法</div>
+          <div class="seg" role="group" aria-label="指定方法">
+            <button type="button" data-mode="pct" aria-pressed="true">解像度 %</button>
+            <button type="button" data-mode="dots" aria-pressed="false">横のドット数</button>
+            <button type="button" data-mode="block" aria-pressed="false">ドットの大きさ</button>
+          </div>
+          <div class="numrow">
+            <input type="range" class="slider" aria-label="値を調整">
+            <input type="number" class="num" step="any" inputmode="decimal" aria-label="値">
+          </div>
+          <p class="hint modeHint"></p>
+          <div class="presets"></div>
+        </div>
+        <div class="sec">
+          <div class="label">増やした画素の色の決め方</div>
+          <select id="interp" aria-label="増やした画素の色の決め方">
+            <option value="smooth">まわりの色からなめらかに計算</option>
+            <option value="nearest">いちばん近いドットの色をそのまま使う</option>
+          </select>
+        </div>
+        <div class="sec">
+          <div class="label">保存</div>
+          <div class="saverow">
+            <select id="fmt2" aria-label="保存形式">
+              <option value="image/png">PNG</option>
+              <option value="image/jpeg">JPEG</option>
+              <option value="image/webp">WebP</option>
+            </select>
+            <button class="btn" id="save2" type="button">保存</button>
+          </div>
+          <p class="hint" id="saveHint" hidden>この表示では保存ボタンが使えません。プレビューを右クリック（長押し）して保存してください。</p>
+        </div>
+      </div>
+      <div class="view">
+        <div class="stats">
+          <div class="stat"><small>中身の解像度</small><b id="upDim">—</b></div>
+          <div class="stat"><small>ドット1つ</small><b id="dot2">—</b></div>
+          <div class="stat"><small>元と同じ色の画素</small><b id="match" class="lossv">—</b></div>
+          <span class="spacer"></span>
+          <div class="btns">
+            <button type="button" class="btn ghost hold" data-hold="2">押している間 元画像</button>
+            <button type="button" class="btn ghost" id="diffBtn" aria-pressed="false">元との違いを表示</button>
+          </div>
+        </div>
+        <div class="stage"><canvas id="out2" aria-label="解像度を上げた画像"></canvas><span class="badge" id="badge2" hidden>元画像</span></div>
+        <p class="callout" id="takeaway"></p>
+        <p class="hint">「元と同じ色の画素」は、赤・緑・青それぞれのズレが ±6 以内の画素の割合です。「元との違いを表示」では、元の画像と色が違う場所ほど明るく光ります。</p>
+        <p class="status" id="status2"></p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const st = { src: null, name: "sample", isSample: true, hold: 0, diff: false };
+  let downloads = null, small = null, raised = null, diffCanvas = null;
+  const fmtN = n => n.toLocaleString("ja-JP");
+  const W = () => st.src.naturalWidth || st.src.width;
+  const H = () => st.src.naturalHeight || st.src.height;
+  const hFor = lw => Math.min(H(), Math.max(1, Math.round(lw * H() / W())));
+
+  // ---------- サンプル画像（細かい部分を含む） ----------
+  function makeSample() {
+    const c = document.createElement("canvas"); c.width = 1200; c.height = 800;
+    const x = c.getContext("2d");
+    const g = x.createLinearGradient(0, 0, 1200, 800);
+    g.addColorStop(0, "#1f6feb"); g.addColorStop(1, "#13a39a");
+    x.fillStyle = g; x.fillRect(0, 0, 1200, 800);
+    const sun = x.createRadialGradient(860, 230, 20, 860, 230, 150);
+    sun.addColorStop(0, "#fff7c2"); sun.addColorStop(1, "#ffb347");
+    x.fillStyle = sun; x.beginPath(); x.arc(860, 230, 140, 0, Math.PI * 2); x.fill();
+    x.fillStyle = "#0d3b66";
+    x.beginPath(); x.moveTo(0, 800); x.lineTo(0, 560); x.lineTo(260, 400); x.lineTo(520, 600); x.lineTo(760, 450); x.lineTo(1200, 640); x.lineTo(1200, 800); x.fill();
+    x.fillStyle = "#fff"; x.font = "700 68px 'IBM Plex Sans JP', sans-serif"; x.fillText("サンプル画像", 70, 150);
+    x.font = "500 32px 'IBM Plex Mono', monospace"; x.fillText("1200 × 800 px", 74, 205);
+    x.fillStyle = "#ffffff"; x.fillRect(720, 600, 440, 170);
+    x.fillStyle = "#17212b"; x.font = "500 20px 'IBM Plex Sans JP', sans-serif";
+    x.fillText("小さな文字は、解像度を", 740, 640);
+    x.fillText("下げると読めなくなります。", 740, 668);
+    for (let i = 0; i < 40; i++) { x.fillStyle = i % 2 ? "#17212b" : "#ffffff"; x.fillRect(740 + i * 4, 690, 4, 60); }
+    for (let i = 0; i < 15; i++) for (let j = 0; j < 15; j++) { x.fillStyle = (i + j) % 2 ? "#c2410c" : "#ffffff"; x.fillRect(920 + i * 4, 690 + j * 4, 4, 4); }
+    return c;
+  }
+
+  // ---------- 数値入力（STEP 1・2 共通の部品） ----------
+  // 内部では「横のドット数」で値を持ち、表示の単位だけを切り替える
+  const PRESETS = { pct: [100, 50, 25, 10, 5, 2], dots: [1024, 512, 256, 128, 64, 32, 16], block: [1, 2, 4, 8, 16, 32] };
+  const HINTS = {
+    1: { pct: "100%で元のまま。小さくするほど粗くなります。", dots: "画像の横方向を何ドットで表すか。小さいほど粗くなります。", block: "ドット1つを何画素四方にするか。大きいほど粗くなります。" },
+    2: { pct: "STEP 1 の値より大きくするほど、画素が増えます。100%で元と同じ解像度。", dots: "横のドット数を増やします。最大は元の画像の横の画素数です。", block: "ドット1つを小さくするほど、画素が増えます。1で元と同じ解像度。" },
+  };
+  function makeControl(n, getRange, onChange) {
+    const root = document.querySelector(`[data-ctl="${n}"]`);
+    const slider = root.querySelector(".slider"), num = root.querySelector(".num");
+    const c = { mode: "pct", dots: 1 };
+    const toUnit = d => c.mode === "pct" ? d / W() * 100 : c.mode === "dots" ? d : W() / d;
+    const fromUnit = v => c.mode === "pct" ? W() * v / 100 : c.mode === "dots" ? v : W() / v;
+    const show = v => c.mode === "dots" ? String(Math.round(v)) : String(Math.round(v * 10) / 10);
+    function refresh() {
+      const [lo, hi] = getRange();
+      c.dots = Math.max(lo, Math.min(hi, Math.round(c.dots)));
+      let a = toUnit(lo), b = toUnit(hi); if (a > b) [a, b] = [b, a];
+      slider.min = a; slider.max = b; slider.step = c.mode === "dots" ? 1 : 0.1;
+      slider.value = toUnit(c.dots); num.value = show(toUnit(c.dots));
+      slider.disabled = num.disabled = lo === hi;
+      root.querySelector(".modeHint").textContent = HINTS[n][c.mode];
+      const p = root.querySelector(".presets"); p.textContent = "";
+      const unit = c.mode === "pct" ? "%" : c.mode === "block" ? "px" : "";
+      PRESETS[c.mode].forEach(v => {
+        const d = fromUnit(v); if (d < lo - 0.5 || d > hi + 0.5) return;
+        const btn = document.createElement("button"); btn.type = "button"; btn.textContent = v + unit;
+        btn.onclick = () => { c.dots = d; refresh(); onChange(); };
+        p.append(btn);
+      });
+      root.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === c.mode));
+    }
+    function setFromValue(v, fromNum) {
+      if (!(v > 0)) return;
+      const [lo, hi] = getRange();
+      c.dots = Math.max(lo, Math.min(hi, Math.round(fromUnit(v))));
+      if (fromNum) slider.value = v; else num.value = show(v);
+      onChange();
+    }
+    slider.addEventListener("input", () => setFromValue(parseFloat(slider.value), false));
+    num.addEventListener("input", () => setFromValue(parseFloat(num.value), true));
+    num.addEventListener("change", refresh);
+    root.querySelector(".seg").addEventListener("click", e => {
+      const b = e.target.closest("button"); if (!b) return; c.mode = b.dataset.mode; refresh();
+    });
+    c.refresh = refresh;
+    return c;
+  }
+  const ctl1 = makeControl(1, () => [1, W()], () => schedule());
+  const ctl2 = makeControl(2, () => [ctl1.dots, W()], () => schedule(2));
+
+  // ---------- 画像処理 ----------
+  // 縮小：半分ずつ縮めて色を平均化
+  function shrink(src, sw, sh, w, h) {
+    let cur = src, cw = sw, ch = sh;
+    while (cw / 2 >= w && ch / 2 >= h) {
+      const nw = Math.round(cw / 2), nh = Math.round(ch / 2);
+      const c = document.createElement("canvas"); c.width = nw; c.height = nh;
+      const x = c.getContext("2d"); x.imageSmoothingQuality = "high"; x.drawImage(cur, 0, 0, cw, ch, 0, 0, nw, nh);
+      cur = c; cw = nw; ch = nh;
+    }
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    const x = c.getContext("2d"); x.imageSmoothingQuality = "high"; x.drawImage(cur, 0, 0, cw, ch, 0, 0, w, h);
+    return c;
+  }
+  function draw(target, src, smooth) {
+    const x = target.getContext("2d");
+    x.clearRect(0, 0, target.width, target.height);
+    x.imageSmoothingEnabled = smooth; x.imageSmoothingQuality = "high";
+    x.drawImage(src, 0, 0, src.width, src.height, 0, 0, target.width, target.height);
+  }
+  function fit(c, w, h) { if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } }
+
+  // ---------- 描画 ----------
+  let timer = 0, pending = 1;
+  function schedule(from = 1) { pending = Math.min(pending, from); clearTimeout(timer); timer = setTimeout(() => { const f = pending; pending = 3; render(f); }, 60); }
+
+  function render(from) {
+    if (!st.src) return;
+    const w = W(), h = H();
+    if (from <= 1) {
+      const lw = ctl1.dots, lh = hFor(lw);
+      small = shrink(st.src, w, h, lw, lh);
+      $("lowDim").textContent = `${lw} × ${lh}`;
+      $("dot1").textContent = dotText(w / lw);
+      fit($("out1"), w, h); paint1();
+      const th = $("thumb"); fit(th, lw, lh); draw(th, small, false);
+      $("fromDim").textContent = `${lw} × ${lh}`;
+      ctl2.refresh();
+    }
+    // STEP 2：下げた画像（small）から解像度を上げる
+    const rw = ctl2.dots, rh = hFor(rw);
+    const smooth = $("interp").value === "smooth";
+    raised = document.createElement("canvas"); raised.width = rw; raised.height = rh;
+    draw(raised, small, smooth);
+    fit($("out2"), w, h);
+    const a = analyze();
+    paint2();
+    $("upDim").textContent = `${small.width}×${small.height} → ${rw}×${rh}`;
+    $("dot2").textContent = dotText(w / rw);
+    $("match").textContent = pct(a.match);
+    const lost = small.width < w;
+    $("takeaway").textContent = !lost
+      ? "STEP 1 で解像度を下げていないので、何も失われていません。STEP 1 の数値を小さくしてから試してみましょう。"
+      : rw === small.width
+        ? `まだ解像度を上げていません。左の数値を大きくして、横 ${fmtN(w)} ドット（100%）まで上げてみましょう。`
+        : `解像度は ${small.width}×${small.height} から ${rw}×${rh} に上がり、画素の数は ${fmtN(small.width * small.height)} 個から ${fmtN(rw * rh)} 個に増えました。でも元の画像と同じ色の画素は ${pct(a.match)} だけです。増えた画素の色は、残っていたドットから計算で作ったもので、STEP 1 で捨てた細かい部分は戻りません。`;
+  }
+  function paint1() {
+    const out = $("out1");
+    if (st.hold === 1) draw(out, st.src, false); else draw(out, small, false);
+    $("badge1").hidden = st.hold !== 1;
+  }
+  function paint2() {
+    const out = $("out2");
+    if (st.hold === 2) draw(out, st.src, false);
+    else if (st.diff) draw(out, diffCanvas, false);
+    else draw(out, raised, false);
+    $("badge2").hidden = !(st.hold === 2 || st.diff);
+    $("badge2").textContent = st.hold === 2 ? "元画像" : "元との違い（明るいほど違う）";
+  }
+
+  // 元画像と STEP 2 の結果をくらべる（重いので最大約80万画素に縮めて計算）
+  function analyze() {
+    const w = W(), h = H();
+    const k = Math.min(1, Math.sqrt(800000 / (w * h)));
+    const aw = Math.max(1, Math.round(w * k)), ah = Math.max(1, Math.round(h * k));
+    const ctx = c => c.getContext("2d", { willReadFrequently: true });
+    const a = document.createElement("canvas"); a.width = aw; a.height = ah;
+    const ax = ctx(a); ax.imageSmoothingQuality = "high"; ax.drawImage(st.src, 0, 0, aw, ah);
+    const b = document.createElement("canvas"); b.width = aw; b.height = ah;
+    const bx = ctx(b); bx.imageSmoothingEnabled = k < 1; bx.imageSmoothingQuality = "high";
+    // 表示と同じく「ドットのまま」並べた画像を比べる
+    const full = document.createElement("canvas"); full.width = w; full.height = h; draw(full, raised, false);
+    bx.drawImage(full, 0, 0, aw, ah);
+    const A = ax.getImageData(0, 0, aw, ah).data, B = bx.getImageData(0, 0, aw, ah).data;
+    const D = bx.createImageData(aw, ah), dd = D.data;
+    let same = 0;
+    for (let i = 0; i < A.length; i += 4) {
+      const m = Math.max(Math.abs(A[i] - B[i]), Math.abs(A[i + 1] - B[i + 1]), Math.abs(A[i + 2] - B[i + 2]));
+      if (m <= 6) same++;
+      const v = Math.min(255, m * 3);
+      dd[i] = v; dd[i + 1] = v * 0.55; dd[i + 2] = v * 0.2; dd[i + 3] = 255;
+    }
+    diffCanvas = document.createElement("canvas"); diffCanvas.width = aw; diffCanvas.height = ah;
+    diffCanvas.getContext("2d").putImageData(D, 0, 0);
+    return { match: same / (aw * ah) };
+  }
+
+  // ---------- UI ----------
+  function dotText(d) { return (d >= 10 ? Math.round(d) : d.toFixed(1)) + " 画素"; }
+  function pct(r) { const v = r * 100; return (v >= 10 ? v.toFixed(0) : v >= 1 ? v.toFixed(1) : v.toFixed(2)) + "%"; }
+  function fmtBytes(n) { return n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(1) + " KB" : (n / 1048576).toFixed(2) + " MB"; }
+
+  $("interp").addEventListener("change", () => schedule(2));
+  $("diffBtn").addEventListener("click", () => {
+    st.diff = !st.diff;
+    $("diffBtn").classList.toggle("on", st.diff); $("diffBtn").setAttribute("aria-pressed", st.diff);
+    $("diffBtn").textContent = st.diff ? "画像の表示に戻す" : "元との違いを表示";
+    paint2();
+  });
+  document.querySelectorAll("[data-hold]").forEach(btn => {
+    const n = +btn.dataset.hold;
+    const set = on => { st.hold = on ? n : 0; btn.classList.toggle("on", on); n === 1 ? paint1() : paint2(); };
+    btn.addEventListener("pointerdown", e => { e.preventDefault(); set(true); });
+    ["pointerup", "pointerleave", "pointercancel"].forEach(ev => btn.addEventListener(ev, () => st.hold === n && set(false)));
+    btn.addEventListener("keydown", e => { if ((e.key === " " || e.key === "Enter") && st.hold !== n) { e.preventDefault(); set(true); } });
+    btn.addEventListener("keyup", e => { if (e.key === " " || e.key === "Enter") set(false); });
+  });
+
+  // ---------- 読み込み ----------
+  function loadFile(file) {
+    if (!file || !file.type.startsWith("image/")) { $("status1").textContent = "画像ファイルを選んでください（PNG・JPEG・WebP・GIFなど）。"; return; }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      st.src = img; st.isSample = false; st.name = file.name.replace(/\.[^.]+$/, "") || "image";
+      onSourceChanged(file.size);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); $("status1").textContent = "この画像は読み込めませんでした。別の形式で試してください。"; };
+    img.src = url;
+  }
+  function onSourceChanged(bytes) {
+    const info = $("fileinfo"); info.textContent = "";
+    const t = document.createElement("span");
+    t.textContent = st.isSample ? "sample.png" : st.name + (bytes ? " · " + fmtBytes(bytes) : "");
+    info.append(t);
+    if (st.isSample) { const s = document.createElement("span"); s.className = "tag"; s.textContent = "サンプル"; info.append(s); }
+    $("status1").textContent = "";
+    $("srcDim").textContent = `${W()} × ${H()}`;
+    ctl1.dots = Math.max(1, Math.round(W() * 0.1));
+    ctl2.dots = W();
+    ctl1.refresh(); ctl2.refresh();
+    schedule(1);
+  }
+
+  // ---------- 保存 ----------
+  async function save(n) {
+    if (!small) return;
+    const type = $("fmt" + n).value;
+    const w = W(), h = H();
+    let c = document.createElement("canvas"); c.width = w; c.height = h;
+    const x = c.getContext("2d");
+    if (type === "image/jpeg") { x.fillStyle = "#fff"; x.fillRect(0, 0, w, h); }
+    x.imageSmoothingEnabled = false;
+    const srcC = n === 1 ? small : raised;
+    x.drawImage(srcC, 0, 0, srcC.width, srcC.height, 0, 0, w, h);
+    const blob = await new Promise(r => c.toBlob(r, type, 0.92));
+    const status = $("status" + n);
+    if (!blob) { status.textContent = "この形式では書き出せませんでした。別の形式を選んでください。"; return; }
+    const ext = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" }[blob.type] || "png";
+    const base = st.isSample ? "sample" : st.name;
+    const filename = n === 1 ? `${base}_down_${small.width}x${small.height}.${ext}` : `${base}_up_${raised.width}x${raised.height}.${ext}`;
+    if (!downloads && !window.claude) {
+      // 通常のブラウザで開いたとき：そのままダウンロード
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename;
+      document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      status.textContent = `保存しました：${filename}（${fmtBytes(blob.size)}）`; return;
+    }
+    if (!downloads) { $("saveHint").hidden = false; status.textContent = "この表示では保存ボタンが使えません。画像を右クリック（長押し）して保存してください。"; return; }
+    try { await downloads.save({ filename, data: blob }); status.textContent = `保存しました：${filename}（${fmtBytes(blob.size)}）`; }
+    catch (e) {
+      const code = e && e.code;
+      if (code === "declined") status.textContent = "保存をキャンセルしました。";
+      else if (code === "rate_limited") status.textContent = "保存の確認画面がすでに開いています。少し待ってからもう一度押してください。";
+      else { $("saveHint").hidden = false; status.textContent = "この表示では保存できませんでした。画像を右クリック（長押し）して保存してください。"; }
+    }
+  }
+  $("save1").onclick = () => save(1);
+  $("save2").onclick = () => save(2);
+
+  const drop = $("drop");
+  drop.onclick = () => $("file").click();
+  drop.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("file").click(); } };
+  $("file").onchange = () => { loadFile($("file").files[0]); $("file").value = ""; };
+  ["dragenter", "dragover"].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev === "drop" || e.target === document.documentElement) drop.classList.remove("over"); }));
+  document.addEventListener("drop", e => { const f = e.dataTransfer && e.dataTransfer.files[0]; if (f) loadFile(f); });
+  document.addEventListener("paste", e => { const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith("image/")); if (item) loadFile(item.getAsFile()); });
+
+  // ---------- 起動 ----------
+  st.src = makeSample();
+  onSourceChanged(0);
+  if (document.fonts) document.fonts.ready.then(() => { if (st.isSample) { st.src = makeSample(); schedule(1); } });
+  if (window.claude?.use) {
+    window.claude.use("downloads").then(d => { downloads = d; if (!d) $("saveHint").hidden = false; }).catch(() => { $("saveHint").hidden = false; });
+  }
+})();
+</script>
+
+</body>
+</html>
